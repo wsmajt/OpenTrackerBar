@@ -1,0 +1,12 @@
+{
+  "id": "openTrackerBar",
+  "name": "OpenTrackerBar",
+  "description": "Monitor AI provider usage via opentracker CLI",
+  "version": "1.0.0",
+  "author": "smajt",
+  "icon": "monitoring",
+  "type": "widget",
+  "component": "./OpenTrackerBarWidget.qml",
+  "settings": "./OpenTrackerBarSettings.qml",
+  "permissions": ["process", "settings_read", "settings_write"]
+}
