@@ -70,7 +70,23 @@ PluginComponent {
     function formatTimeUntil(iso) {
         if (!iso)
             return "";
-        var diff = new Date(iso).getTime() - Date.now();
+        var parts = iso.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?Z$/);
+        var targetMs;
+        if (parts) {
+            var year = parseInt(parts[1], 10);
+            var month = parseInt(parts[2], 10) - 1;
+            var day = parseInt(parts[3], 10);
+            var hour = parseInt(parts[4], 10);
+            var minute = parseInt(parts[5], 10);
+            var second = parseInt(parts[6], 10);
+            targetMs = Date.UTC(year, month, day, hour, minute, second, 0);
+        } else {
+            var d = new Date(iso);
+            if (isNaN(d.getTime()))
+                return "";
+            targetMs = d.getTime();
+        }
+        var diff = targetMs - Date.now();
         if (diff <= 0)
             return "now";
         var mins = Math.floor(diff / 60000);
@@ -83,9 +99,9 @@ PluginComponent {
         return days + "d " + (hrs % 24) + "h";
     }
 
-    function getWindowLabel(windowMinutes) {
-        if (!windowMinutes)
-            return "";
+    function getWindowLabel(windowMinutes, fallback) {
+        if (windowMinutes == null)
+            return fallback || "";
         if (windowMinutes <= 300)
             return "Session";
         if (windowMinutes <= 10080)
@@ -383,7 +399,7 @@ PluginComponent {
                                         StyledText {
                                             id: primLabel
                                             anchors.left: parent.left
-                                            text: root.getWindowLabel(modelData.usage && modelData.usage.primary ? modelData.usage.primary.windowMinutes : null)
+                                            text: root.getWindowLabel(modelData.usage && modelData.usage.primary ? modelData.usage.primary.windowMinutes : null, "Session")
                                             font.pixelSize: Theme.fontSizeSmall
                                             color: Theme.surfaceVariantText
                                         }
@@ -439,7 +455,7 @@ PluginComponent {
                                         StyledText {
                                             id: secLabel
                                             anchors.left: parent.left
-                                            text: root.getWindowLabel(modelData.usage && modelData.usage.secondary ? modelData.usage.secondary.windowMinutes : null)
+                                            text: root.getWindowLabel(modelData.usage && modelData.usage.secondary ? modelData.usage.secondary.windowMinutes : null, "Weekly")
                                             font.pixelSize: Theme.fontSizeSmall
                                             color: Theme.surfaceVariantText
                                         }
