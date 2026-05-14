@@ -28,28 +28,28 @@ PluginComponent {
         if (providers.length === 0)
             return null;
         var filtered = providers.filter(function (p) {
-            return p.usage && p.usage.primary && !p.error;
+            return p.usage && p.usage.rolling && !p.error;
         });
         if (filtered.length === 0)
             return null;
         var highest = filtered[0];
         for (var i = 1; i < filtered.length; i++) {
-            if (filtered[i].usage.primary.usedPercent > highest.usage.primary.usedPercent)
+            if (filtered[i].usage.rolling.usedPercent > highest.usage.rolling.usedPercent)
                 highest = filtered[i];
         }
         return highest;
     }
 
     readonly property real highestPercent: {
-        if (!highestProvider || !highestProvider.usage || !highestProvider.usage.primary)
+        if (!highestProvider || !highestProvider.usage || !highestProvider.usage.rolling)
             return 0;
-        return highestProvider.usage.primary.usedPercent;
+        return highestProvider.usage.rolling.usedPercent;
     }
 
     readonly property string highestName: {
         if (!highestProvider)
             return "N/A";
-        return capitalizeFirst(highestProvider.provider);
+        return formatProviderName(highestProvider.provider);
     }
 
     // === Helpers ===
@@ -65,6 +65,12 @@ PluginComponent {
         if (!s)
             return "";
         return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+
+    function formatProviderName(name) {
+        if (name === "opencode-go")
+            return "Opencode";
+        return capitalizeFirst(name);
     }
 
     function formatTimeUntil(iso) {
@@ -97,16 +103,6 @@ PluginComponent {
             return hrs + "h " + (mins % 60) + "m";
         var days = Math.floor(hrs / 24);
         return days + "d " + (hrs % 24) + "h";
-    }
-
-    function getWindowLabel(windowMinutes, fallback) {
-        if (windowMinutes == null || windowMinutes === 0)
-            return fallback || "";
-        if (windowMinutes <= 300)
-            return "Session";
-        if (windowMinutes <= 10080)
-            return "Weekly";
-        return Math.floor(windowMinutes / 1440) + "d";
     }
 
     // === Usage fetch ===
@@ -353,17 +349,7 @@ PluginComponent {
                                         color: Theme.surfaceText
                                     }
 
-                                    StyledText {
-                                        text: {
-                                            if (modelData.usage && modelData.usage.identity && modelData.usage.identity.loginMethod)
-                                                return modelData.usage.identity.loginMethod;
-                                            return "";
-                                        }
-                                        font.pixelSize: Theme.fontSizeSmall
-                                        color: Theme.surfaceVariantText
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        visible: text.length > 0
-                                    }
+
                                 }
 
                                 // Error state for this provider
@@ -386,11 +372,11 @@ PluginComponent {
                                     }
                                 }
 
-                                // Primary (session) window
+                                // Rolling window
                                 Column {
                                     width: parent.width
                                     spacing: 2
-                                    visible: !!modelData.usage && !!modelData.usage.primary
+                                    visible: !!modelData.usage && !!modelData.usage.rolling
 
                                     Item {
                                         width: parent.width
@@ -399,7 +385,7 @@ PluginComponent {
                                         StyledText {
                                             id: primLabel
                                             anchors.left: parent.left
-                                            text: root.getWindowLabel(modelData.usage && modelData.usage.primary ? modelData.usage.primary.windowMinutes : null, "Session")
+                                            text: "Session"
                                             font.pixelSize: Theme.fontSizeSmall
                                             color: Theme.surfaceVariantText
                                         }
@@ -407,14 +393,14 @@ PluginComponent {
                                             id: primValue
                                             anchors.right: parent.right
                                             text: {
-                                                if (!modelData.usage || !modelData.usage.primary)
+                                                if (!modelData.usage || !modelData.usage.rolling)
                                                     return "";
-                                                var pct = Math.round(modelData.usage.primary.usedPercent);
-                                                var reset = root.formatTimeUntil(modelData.usage.primary.resetsAt);
+                                                var pct = Math.round(modelData.usage.rolling.usedPercent);
+                                                var reset = root.formatTimeUntil(modelData.usage.rolling.resetsAt);
                                                 return pct + "%" + (reset ? " \u00B7 " + reset : "");
                                             }
                                             font.pixelSize: Theme.fontSizeSmall
-                                            color: root.getUsageColor(modelData.usage && modelData.usage.primary ? modelData.usage.primary.usedPercent : 0)
+                                            color: root.getUsageColor(modelData.usage && modelData.usage.rolling ? modelData.usage.rolling.usedPercent : 0)
                                         }
                                     }
 
@@ -426,12 +412,12 @@ PluginComponent {
 
                                         Rectangle {
                                             width: {
-                                                var pct = modelData.usage && modelData.usage.primary ? modelData.usage.primary.usedPercent : 0;
+                                                var pct = modelData.usage && modelData.usage.rolling ? modelData.usage.rolling.usedPercent : 0;
                                                 return Math.min(1, pct / 100) * parent.width;
                                             }
                                             height: parent.height
                                             radius: parent.radius
-                                            color: root.getUsageColor(modelData.usage && modelData.usage.primary ? modelData.usage.primary.usedPercent : 0)
+                                            color: root.getUsageColor(modelData.usage && modelData.usage.rolling ? modelData.usage.rolling.usedPercent : 0)
                                             Behavior on width {
                                                 NumberAnimation {
                                                     duration: 300
@@ -442,11 +428,11 @@ PluginComponent {
                                     }
                                 }
 
-                                // Secondary (weekly) window
+                                // Weekly window
                                 Column {
                                     width: parent.width
                                     spacing: 2
-                                    visible: !!modelData.usage && !!modelData.usage.secondary
+                                    visible: !!modelData.usage && !!modelData.usage.weekly
 
                                     Item {
                                         width: parent.width
@@ -455,7 +441,7 @@ PluginComponent {
                                         StyledText {
                                             id: secLabel
                                             anchors.left: parent.left
-                                            text: root.getWindowLabel(modelData.usage && modelData.usage.secondary ? modelData.usage.secondary.windowMinutes : null, "Weekly")
+                                            text: "Weekly"
                                             font.pixelSize: Theme.fontSizeSmall
                                             color: Theme.surfaceVariantText
                                         }
@@ -463,14 +449,14 @@ PluginComponent {
                                             id: secValue
                                             anchors.right: parent.right
                                             text: {
-                                                if (!modelData.usage || !modelData.usage.secondary)
+                                                if (!modelData.usage || !modelData.usage.weekly)
                                                     return "";
-                                                var pct = Math.round(modelData.usage.secondary.usedPercent);
-                                                var reset = root.formatTimeUntil(modelData.usage.secondary.resetsAt);
+                                                var pct = Math.round(modelData.usage.weekly.usedPercent);
+                                                var reset = root.formatTimeUntil(modelData.usage.weekly.resetsAt);
                                                 return pct + "%" + (reset ? " \u00B7 " + reset : "");
                                             }
                                             font.pixelSize: Theme.fontSizeSmall
-                                            color: root.getUsageColor(modelData.usage && modelData.usage.secondary ? modelData.usage.secondary.usedPercent : 0)
+                                            color: root.getUsageColor(modelData.usage && modelData.usage.weekly ? modelData.usage.weekly.usedPercent : 0)
                                         }
                                     }
 
@@ -482,12 +468,12 @@ PluginComponent {
 
                                         Rectangle {
                                             width: {
-                                                var pct = modelData.usage && modelData.usage.secondary ? modelData.usage.secondary.usedPercent : 0;
+                                                var pct = modelData.usage && modelData.usage.weekly ? modelData.usage.weekly.usedPercent : 0;
                                                 return Math.min(1, pct / 100) * parent.width;
                                             }
                                             height: parent.height
                                             radius: parent.radius
-                                            color: root.getUsageColor(modelData.usage && modelData.usage.secondary ? modelData.usage.secondary.usedPercent : 0)
+                                            color: root.getUsageColor(modelData.usage && modelData.usage.weekly ? modelData.usage.weekly.usedPercent : 0)
                                             Behavior on width {
                                                 NumberAnimation {
                                                     duration: 300
@@ -498,11 +484,11 @@ PluginComponent {
                                     }
                                 }
 
-                                // Tertiary window
+                                // Monthly window
                                 Column {
                                     width: parent.width
                                     spacing: 2
-                                    visible: !!modelData.usage && !!modelData.usage.tertiary
+                                    visible: !!modelData.usage && !!modelData.usage.monthly
 
                                     Item {
                                         width: parent.width
@@ -511,11 +497,7 @@ PluginComponent {
                                         StyledText {
                                             id: terLabel
                                             anchors.left: parent.left
-                                            text: {
-                                                if (!modelData.usage || !modelData.usage.tertiary)
-                                                    return "";
-                                                return modelData.usage.tertiary.resetDescription || "Tertiary";
-                                            }
+                                            text: "Monthly"
                                             font.pixelSize: Theme.fontSizeSmall
                                             color: Theme.surfaceVariantText
                                         }
@@ -523,14 +505,14 @@ PluginComponent {
                                             id: terValue
                                             anchors.right: parent.right
                                             text: {
-                                                if (!modelData.usage || !modelData.usage.tertiary)
+                                                if (!modelData.usage || !modelData.usage.monthly)
                                                     return "";
-                                                var pct = Math.round(modelData.usage.tertiary.usedPercent);
-                                                var reset = root.formatTimeUntil(modelData.usage.tertiary.resetsAt);
+                                                var pct = Math.round(modelData.usage.monthly.usedPercent);
+                                                var reset = root.formatTimeUntil(modelData.usage.monthly.resetsAt);
                                                 return pct + "%" + (reset ? " \u00B7 " + reset : "");
                                             }
                                             font.pixelSize: Theme.fontSizeSmall
-                                            color: root.getUsageColor(modelData.usage && modelData.usage.tertiary ? modelData.usage.tertiary.usedPercent : 0)
+                                            color: root.getUsageColor(modelData.usage && modelData.usage.monthly ? modelData.usage.monthly.usedPercent : 0)
                                         }
                                     }
 
@@ -542,47 +524,19 @@ PluginComponent {
 
                                         Rectangle {
                                             width: {
-                                                var pct = modelData.usage && modelData.usage.tertiary ? modelData.usage.tertiary.usedPercent : 0;
+                                                var pct = modelData.usage && modelData.usage.monthly ? modelData.usage.monthly.usedPercent : 0;
                                                 return Math.min(1, pct / 100) * parent.width;
                                             }
                                             height: parent.height
                                             radius: parent.radius
-                                            color: root.getUsageColor(modelData.usage && modelData.usage.tertiary ? modelData.usage.tertiary.usedPercent : 0)
+                                            color: root.getUsageColor(modelData.usage && modelData.usage.monthly ? modelData.usage.monthly.usedPercent : 0)
                                         }
                                     }
                                 }
 
-                                // Credits
-                                Row {
-                                    visible: !!modelData.credits && modelData.credits.remaining > 0
-                                    spacing: Theme.spacingXS
 
-                                    DankIcon {
-                                        name: "toll"
-                                        size: 14
-                                        color: Theme.surfaceVariantText
-                                        anchors.verticalCenter: parent.verticalCenter
-                                    }
 
-                                    StyledText {
-                                        text: modelData.credits ? ("Credits: " + modelData.credits.remaining.toFixed(1)) : ""
-                                        font.pixelSize: Theme.fontSizeSmall
-                                        color: Theme.surfaceVariantText
-                                        anchors.verticalCenter: parent.verticalCenter
-                                    }
-                                }
 
-                                // Account email
-                                StyledText {
-                                    text: {
-                                        if (modelData.usage && modelData.usage.identity && modelData.usage.identity.accountEmail)
-                                            return modelData.usage.identity.accountEmail;
-                                        return "";
-                                    }
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    color: Theme.surfaceVariantText
-                                    visible: text.length > 0
-                                }
                             }
                         }
                     }
