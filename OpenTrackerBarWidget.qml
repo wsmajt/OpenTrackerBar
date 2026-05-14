@@ -100,7 +100,7 @@ PluginComponent {
     }
 
     function getWindowLabel(windowMinutes, fallback) {
-        if (windowMinutes == null)
+        if (windowMinutes == null || windowMinutes === 0)
             return fallback || "";
         if (windowMinutes <= 300)
             return "Session";
